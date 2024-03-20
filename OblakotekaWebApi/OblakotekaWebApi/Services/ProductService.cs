@@ -1,63 +1,62 @@
-﻿using OblakotekaWebApi.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using OblakotekaWebApi.Models;
+using AutoMapper;
 
-namespace OblakotekaWebApi;
-
-public class ProductService : IProductService
+namespace OblakotekaWebApi.Services
 {
-    private readonly TestDbContext _context;
-
-    public ProductService(TestDbContext context)
+    public class ProductService : IProductService
     {
-        _context = context;
-    }
+        private readonly TestDbContext _context;
+        private readonly IMapper _mapper;
 
-    public async Task<List<ProductViewModel>> GetProductsAsync(string filter)
-    {
-        List<Product> query = _context.Product.ToList();
-
-        if (!string.IsNullOrEmpty(filter))
+        public ProductService(TestDbContext context, IMapper mapper)
         {
-            query = query.Where(p => p.Name.Contains(filter)).ToList();
+            _context = context;
+            _mapper = mapper;
         }
 
-        List<ProductViewModel> result = new List<ProductViewModel>();
-
-        foreach (var product in query)
+        public async Task<IEnumerable<ProductViewModel>> GetProductsAsync(string? filter)
         {
-            result.Add(
-            new ProductViewModel(
-                id: product.ID,
-                name: product.Name,
-                description: product.Description));
+            IQueryable<Product> query = _context.Product;
+
+            if (!string.IsNullOrEmpty(filter))
+            {
+                query = query.Where(p => p.Name.Contains(filter));
+            }
+
+            var products = await query.ToListAsync();
+            return _mapper.Map<IEnumerable<ProductViewModel>>(products);
         }
 
-        return result;
-    }
-
-    public async Task AddProductAsync(Product product)
-    {
-        await _context.Product.AddAsync(product);
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task<Product> GetProductByIdAsync(Guid id)
-    {
-        return await _context.Product.FindAsync(id);
-    }
-
-    public async Task UpdateProductAsync(Product product)
-    {
-        _context.Product.Update(product);
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task DeleteProductAsync(Guid id)
-    {
-        var product = await _context.Product.FindAsync(id);
-        if (product != null)
+        public async Task<ProductViewModel> GetProductAsync(Guid id)
         {
-            _context.Product.Remove(product);
+            var product = await _context.Product.FindAsync(id);
+            return _mapper.Map<ProductViewModel>(product);
+        }
+
+        public async Task<ProductViewModel> CreateProductAsync(ProductViewModel productViewModel)
+        {
+            var product = _mapper.Map<Product>(productViewModel);
+            _context.Product.Add(product);
             await _context.SaveChangesAsync();
+            return _mapper.Map<ProductViewModel>(product);
+        }
+
+        public async Task UpdateProductAsync(ProductViewModel productViewModel)
+        {
+            var product = _mapper.Map<Product>(productViewModel);
+            _context.Entry(product).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteProductAsync(Guid id)
+        {
+            var product = await _context.Product.FindAsync(id);
+            if (product != null)
+            {
+                _context.Product.Remove(product);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

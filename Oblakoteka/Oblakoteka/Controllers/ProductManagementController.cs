@@ -4,90 +4,108 @@ namespace Oblakoteka.Controllers
 {
     public class ProductManagementController : Controller
     {
-        private readonly HttpClient _httpClient;
+        private readonly IProductManagementService _productManagementService;
 
-        public ProductManagementController(IHttpClientFactory httpClientFactory)
+        public ProductManagementController(IProductManagementService productService)
         {
-            _httpClient = httpClientFactory.CreateClient();
-            _httpClient.BaseAddress = new Uri("http://localhost:5087/");
+            _productManagementService = productService;
         }
 
         public async Task<IActionResult> Index(string filter)
         {
-            var url = "api/product";
-
-            if (!string.IsNullOrEmpty(filter))
+            try
             {
-                url += $"?filter={filter}";
+                var products = await _productManagementService.GetProductsAsync(filter);
+                return View(products);
             }
-
-            var response = await _httpClient.GetAsync(url);
-            response.EnsureSuccessStatusCode();
-
-            var products = await response.Content.ReadFromJsonAsync<List<ProductViewModel>>();
-            return View(products);
+            catch (Exception ex)
+            {
+                return RedirectToAction("Error", new { message = "Произошла ошибка при загрузке списка продуктов. Пожалуйста, повторите попытку позже." });
+            }
         }
 
-        public ActionResult Add()
+        public IActionResult Add()
         {
-            var model = new ProductViewModel();
-
-            return PartialView("_ProductAddForm", model);
-        }
-
-        public IActionResult Create()
-        {
-            return View();
+            return PartialView("_ProductAddForm", new ProductViewModel());
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ProductViewModel product)
         {
-            if (ModelState.IsValid)
+            try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/product", product);
-                response.EnsureSuccessStatusCode();
+                if (ModelState.IsValid)
+                {
+                    await _productManagementService.CreateProductAsync(product);
+                }
+                return RedirectToAction(nameof(Index));
             }
-
-            return RedirectToAction(nameof(Index));
+            catch (Exception ex)
+            {
+                return RedirectToAction("Error", new { message = "Произошла ошибка при создании продукта. Пожалуйста, повторите попытку позже." });
+            }
         }
 
-        [HttpGet]
         public async Task<IActionResult> Edit(Guid id)
         {
-            var response = await _httpClient.GetAsync($"api/product/{id}");
-            response.EnsureSuccessStatusCode();
-
-            var product = await response.Content.ReadFromJsonAsync<ProductViewModel>();
-            return PartialView("_ProductEditForm", product);
+            try
+            {
+                var product = await _productManagementService.GetProductAsync(id);
+                if (product == null)
+                {
+                    return NotFound();
+                }
+                return PartialView("_ProductEditForm", product);
+            }
+            catch (Exception ex)
+            {
+                return RedirectToAction("Error", new { message = "Произошла ошибка при загрузке данных продукта для редактирования. Пожалуйста, повторите попытку позже." });
+            }
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Guid id, ProductViewModel product)
         {
-            if (id != product.ID)
+            try
             {
-                return NotFound();
-            }
+                if (id != product.ID)
+                {
+                    return NotFound();
+                }
 
-            if (ModelState.IsValid)
-            {
-                var response = await _httpClient.PutAsJsonAsync($"api/product/{id}", product);
-                response.EnsureSuccessStatusCode();
+                if (ModelState.IsValid)
+                {
+                    await _productManagementService.UpdateProductAsync(id, product);
+                }
+                return RedirectToAction(nameof(Index));
             }
-            return RedirectToAction(nameof(Index));
+            catch (Exception ex)
+            {
+                return RedirectToAction("Error", new { message = "Произошла ошибка при обновлении продукта. Пожалуйста, повторите попытку позже." });
+            }
         }
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
-            var response = await _httpClient.DeleteAsync($"api/product/{id}");
-            response.EnsureSuccessStatusCode();
+            try
+            {
+                await _productManagementService.DeleteProductAsync(id);
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                return RedirectToAction("Error", new { message = "Произошла ошибка при удалении продукта. Пожалуйста, повторите попытку позже." });
+            }
+        }
 
-            return RedirectToAction(nameof(Index));
+        public IActionResult Error(string message)
+        {
+            ViewBag.ErrorMessage = message;
+            return View();
         }
     }
 }

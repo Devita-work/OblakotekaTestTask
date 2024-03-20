@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OblakotekaWebApi;
+using OblakotekaWebApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +12,7 @@ builder.Services.AddSwaggerGen();
 string connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext<TestDbContext>(options => options.UseSqlServer(connectionString));
-
+builder.Services.AddAutoMapper(typeof(AppMappingProfile));
 builder.Services.AddScoped<IProductService, ProductService>();
 
 var app = builder.Build();

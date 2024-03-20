@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Oblakoteka;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,6 +5,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddHttpClient();
+
+builder.Services.AddScoped<IProductManagementService, ProductManagementService>();
 
 var app = builder.Build();
 

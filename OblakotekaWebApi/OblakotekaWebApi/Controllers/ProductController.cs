@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using OblakotekaWebApi.Models;
 
 namespace OblakotekaWebApi.Controllers
 {
@@ -8,102 +6,91 @@ namespace OblakotekaWebApi.Controllers
     [ApiController]
     public class ProductController : ControllerBase
     {
-        private readonly TestDbContext _context;
+        private readonly IProductService _productService;
 
-        public ProductController(TestDbContext context)
+        public ProductController(IProductService productService)
         {
-            _context = context;
+            _productService = productService;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProductViewModel>>> GetProduct(string? filter)
         {
-            IQueryable<Product> query = _context.Product;
-
-            if (!string.IsNullOrEmpty(filter))
+            try
             {
-                query = query.Where(p => p.Name.Contains(filter));
+                var products = await _productService.GetProductsAsync(filter);
+                return Ok(products);
             }
-
-            var products = await query.Select(p => new ProductViewModel
+            catch (Exception ex)
             {
-                ID = p.ID,
-                Name = p.Name,
-                Description = p.Description
-            }).ToListAsync();
-
-            return products;
+                return StatusCode(500, ex.Message);
+            }
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetProduct(Guid id)
+        public async Task<ActionResult<ProductViewModel>> GetProduct(Guid id)
         {
-            var product = await _context.Product.FindAsync(id);
-
-            if (product == null)
-            {
-                return NotFound();
-            }
-
-            return product;
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<Product>> PostProduct(Product product)
-        {
-            _context.Product.Add(product);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetProduct), new { id = product.ID }, product);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutProduct(Guid id, Product product)
-        {
-            if (id != product.ID)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(product).State = EntityState.Modified;
-
             try
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ProductExists(id))
+                var product = await _productService.GetProductAsync(id);
+                if (product == null)
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
-            }
 
-            return NoContent();
+                return Ok(product);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<ProductViewModel>> PostProduct(ProductViewModel productViewModel)
+        {
+            try
+            {
+                var createdProduct = await _productService.CreateProductAsync(productViewModel);
+                return CreatedAtAction(nameof(GetProduct), new { id = createdProduct.ID }, createdProduct);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutProduct(Guid id, ProductViewModel productViewModel)
+        {
+            try
+            {
+                if (id != productViewModel.ID)
+                {
+                    return BadRequest();
+                }
+
+                await _productService.UpdateProductAsync(productViewModel);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(Guid id)
         {
-            var product = await _context.Product.FindAsync(id);
-            if (product == null)
+            try
             {
-                return NotFound();
+                await _productService.DeleteProductAsync(id);
+                return NoContent();
             }
-
-            _context.Product.Remove(product);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool ProductExists(Guid id)
-        {
-            return _context.Product.Any(e => e.ID == id);
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
     }
 }

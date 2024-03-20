@@ -7,9 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="api\**" />
     <Compile Remove="Controllers\Новая папка\**" />
+    <Content Remove="api\**" />
     <Content Remove="Controllers\Новая папка\**" />
+    <EmbeddedResource Remove="api\**" />
     <EmbeddedResource Remove="Controllers\Новая папка\**" />
+    <None Remove="api\**" />
     <None Remove="Controllers\Новая папка\**" />
   </ItemGroup>
 
